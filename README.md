@@ -4,6 +4,6 @@ This repository contains a Python script for analysing large-scale power quality
 
 The data required to run the analysis is available here: https://strathcloud.sharefile.eu/share?cmd=d&id=s54bf049e5e142b0a#/view/s54bf049e5e142b0a?_k=jxa57e. After cloning the repository, put these PyTables (.h5) files in the `data` directory.
 
-The function `validate_freq_sync()` performs time synchronisation of the PQ data using correlation of measured frequency trends.
+The function [`validate_freq_sync()`](https://github.com/stevenblair/c2c_pq_analysis/blob/master/pq_analysis.py#L485) performs time synchronisation of the PQ data using correlation of measured frequency trends.
 
 The pre-generated outputs from the script are provided in the `plots`, `circuit_plots`, and `csv_data` directories.
