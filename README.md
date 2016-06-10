@@ -6,4 +6,4 @@ The data required to run the analysis is available here: https://strathcloud.sha
 
 The function `validate_freq_sync()` performs time synchronisation of the PQ data using correlation of measured frequency trends.
 
-The pre-generated outputs from the script are provided in the `plots`, `circuit_plots`, and 'csv_data' directories.
+The pre-generated outputs from the script are provided in the `plots`, `circuit_plots`, and `csv_data` directories.
