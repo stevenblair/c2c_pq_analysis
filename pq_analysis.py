@@ -74,7 +74,8 @@ class MonitoringDataProcessing():
             {'name': 'Voltage THD', 'index': 'THD_V_Avg_perc', 'unit': '%', 'limits': (0.0, 5.0)},
             {'name': 'TDD', 'index': 'TDD_A_Avg_perc', 'unit': '%', 'limits': (0.0, 20.0)},
             {'name': 'Flicker, Pst', 'index': 'Flicker_P_st_Avg', 'unit': '', 'limits': (0.0, 1.0)},
-            {'name': 'Flicker, Plt', 'index': 'Flicker_P_lt_Avg', 'unit': '', 'limits': (0.0, 1.0)}#,
+            {'name': 'Flicker, Plt', 'index': 'Flicker_P_lt_Avg', 'unit': '', 'limits': (0.0, 1.0)},
+            # {'name': 'IEC Negative Sequence Current Average (%)', 'index': 'IEC_Negative_Sequence_A_Avg_perc', 'unit': '%', 'limits': (0.0, 200.0)}#,
             # {'name': 'Voltage unbalance', 'index': 'IEC_Negative_Sequence_V_Avg_perc', 'unit': '%', 'limits': (0.0, 1.0)}
         ]
 
@@ -99,6 +100,7 @@ class MonitoringDataProcessing():
         self.validate_freq_sync(find_offsets=True, trusting=True)
         self.test_demand_variation()
 
+
         self.compare_metric_combine_phases(metric=['THD_V_L1_Avg_perc', 'THD_V_L2_Avg_perc', 'THD_V_L3_Avg_perc'], xlabel='THD (%)')
         self.compare_metric_combine_phases(metric=['P_st_L1_Avg', 'P_st_L2_Avg', 'P_st_L3_Avg'], xlabel='Flicker (Pst)')
         self.compare_metric(metric=['THD_V_L1_Avg_perc', 'THD_V_L2_Avg_perc', 'THD_V_L3_Avg_perc'], xlabel='THD (%)')
@@ -111,6 +113,7 @@ class MonitoringDataProcessing():
         self.compare_metric(metric=['L1_Current_RMS_1_2__1_cyc_Avg_A', 'L2_Current_RMS_1_2__1_cyc_Avg_A', 'L3_Current_RMS_1_2__1_cyc_Avg_A'], xlabel='Demand (A)')
         self.compare_metric(metric=['TDD_A_L1_Avg_perc', 'TDD_A_L2_Avg_perc', 'TDD_A_L3_Avg_perc'], xlabel='TDD (%))')
         self.compare_metric(metric=['P_st_L1_Avg', 'P_st_L2_Avg', 'P_st_L3_Avg'], xlabel='Flicker st')
+        self.neg_seq_hist()
 
         if plot_data_overview:
             self.visualise_six_day_periods()
@@ -1584,6 +1587,53 @@ class MonitoringDataProcessing():
         plt.savefig('plots\\PQ-parameters-comparison.eps', format='eps', dpi=1000)
         # plt.show()
 
+
+    def neg_seq_hist(self, use_percentile=False, plot_mean=False):
+        phase_closed = [[], [], []]
+        phase_open = [[], [], []]
+        bins = 300
+
+        metric = ['IEC_Negative_Sequence_A_Min_perc', 'IEC_Negative_Sequence_A_Avg_perc', 'IEC_Negative_Sequence_A_Max_perc']
+
+        for ring_ID, event, event_type in self.events_with_monitoring_data:
+            monitors = self.events_with_monitoring_data[(ring_ID, event, event_type)]
+            for monitor in monitors:
+                table = monitor['table']
+                event_with_offset = event + self.get_offset(monitor['monitor_name'], event)
+                start_datetime = event_with_offset - datetime.timedelta(days=7)
+                end_datetime = event_with_offset + datetime.timedelta(days=7)
+
+                # values_before = [(row[metric[0]], row[metric[1]], row[metric[2]]) for row in table.where('(date >= ' + str(calendar.timegm(start_datetime.timetuple())) + ') & (date <= ' + str(calendar.timegm(event_with_offset.timetuple())) + ')')]
+                values_before = [(row[metric[0]], row[metric[1]], row[metric[2]]) for row in table]
+                values_open = values_before
+                
+                for i in range(0, 3):
+                    if use_percentile:
+                        phase_open[i].append(np.percentile([v[i] for v in values_open], self.PERCENTILE))
+                    elif plot_mean:
+                        phase_open[i].append(np.mean([v[i] for v in values_open]))
+                    else:
+                        phase_open[i].extend([v[i] for v in values_open])
+
+        print '      ', metric
+        print 'mean  ', [np.mean(phase_open[0]), np.mean(phase_open[1]), np.mean(phase_open[2])]
+        print 'median', [np.median(phase_open[0]), np.median(phase_open[1]), np.median(phase_open[2])]
+
+        colours = ['r', 'y', 'b']
+        phase_names = ['Min', 'Average', 'Max']
+
+        fig = plt.figure(figsize=(18, 8), facecolor='w')
+        ax1 = plt.subplot(1, 1, 1)
+        for phase, label, c, phase_name in zip(phase_open, metric, colours, phase_names):
+            ax1.hist(phase, normed=False, histtype='step', bins=bins, label=phase_name, color=c, alpha=0.6)
+        ax1.set_xlabel('IEC Negative Sequence Current (%)', fontsize=18)
+        ax1.set_ylabel('Number of occurrences', fontsize=18)
+        ax1.xaxis.set_ticks(np.arange(0, 1050, 50))
+        ax1.legend(loc='best')
+        plt.tight_layout()
+        plt.savefig('plots\\compare_metric_' + metric[0] + '.pdf')
+        plt.savefig('plots\\compare_metric_' + metric[0] + '.png', dpi=220)
+        plt.show()
 
 
     def compare_metric(self, metric=['THD_V_L1_Avg_perc', 'THD_V_L2_Avg_perc', 'THD_V_L3_Avg_perc'], xlabel='', use_percentile=False, plot_mean=True):
